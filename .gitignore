@@ -1,0 +1,55 @@
+# Python-specific ignores
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+venv/
+env/
+*.venv
+.pytest_cache/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+*.log
+
+# C++-specific ignores
+*.o
+*.obj
+*.exe
+*.out
+*.app
+*.so
+*.dylib
+*.dll
+*.lib
+*.a
+*.gcno
+*.gcda
+*.gcov
+build*/
+Debug/
+Release/
+
+# IDE and editor ignores
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*~
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Miscellaneous
+*.bak
+*.tmp
+*.temp
