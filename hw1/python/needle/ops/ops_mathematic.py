@@ -155,19 +155,22 @@ class Transpose(TensorOp):
     def compute(self, a):
         ### BEGIN YOUR SOLUTION
         # kinda ugly. should improve
-        if self.axes is None:
-            self.axes = list(range(0, a.ndim, 1))
-            self.axes[-1], self.axes[-2] = self.axes[-2], self.axes[-1]
-        else:
-            axes = list(range(0, a.ndim, 1))
-            axes[self.axes[-1]], axes[self.axes[-2]] = axes[self.axes[-2]], axes[self.axes[-1]]
-            self.axes = axes
-        return array_api.transpose(a, axes=tuple(self.axes))
+        if len(a.shape) == 1:
+            return a
+        elif self.axes is None:
+            self.axes = (-1, -2)
+        axes = list(range(0, a.ndim, 1))
+        axes[self.axes[-1]], axes[self.axes[-2]] = axes[self.axes[-2]], axes[self.axes[-1]]
+        return array_api.transpose(a, axes=tuple(axes))
         ### END YOUR SOLUTION
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        i = node.inputs[0]
+        if len(i.shape) == 1:
+            return out_grad
+        # self.axes should already be valid 
+        return transpose(out_grad, axes=tuple(self.axes))
         ### END YOUR SOLUTION
 
 
@@ -195,7 +198,7 @@ class Reshape(TensorOp):
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return reshape(out_grad, node.inputs[0].shape)
         ### END YOUR SOLUTION
 
 
@@ -223,7 +226,19 @@ class BroadcastTo(TensorOp):
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        i = node.inputs[0]
+        i_shape, out_shape = i.shape, out_grad.shape
+        if len(i_shape) != len(out_shape):
+            sum_axes = tuple(range(len(out_shape) - len(i_shape)))
+            out_grad = summation(out_grad, axes=sum_axes)
+            sum_axes = tuple([i for i in range(len(i_shape)) if i_shape[i] == 1 and out_grad.shape[i] != 1])
+            if sum_axes:
+                out_grad = reshape(summation(out_grad, sum_axes), i_shape)
+        else: 
+            sum_axes = tuple([i for i in range(len(i_shape)) if i_shape[i] == 1 and out_shape[i] != 1])
+            if sum_axes:
+                out_grad = reshape(summation(out_grad, sum_axes), i_shape)
+        return out_grad  
         ### END YOUR SOLUTION
 
 
@@ -292,19 +307,40 @@ class MatMul(TensorOp):
         """pretending they are scalar and piece shape together. 
 
         Args:
-            out_grad (_type_): shape(m, k)
+            out_grad (_type_): shape(..., m, k)
             node (_type_): 
-                lhs: shape(m, n)
-                rhs: shape(n, k)
+                lhs: shape(..., m, n)
+                rhs: shape(..., n, k)
+        NOTE
+        In batched matrix multiplication, A or B may have fewer batch dimensions or dimensions of size 1, which are broadcasted to match the output's batch dimensions. The gradients grad_a and grad_b will have the broadcasted batch shape (same as out_grad's batch dimensions), but they must be reduced to A's and B's original shapes by summing over broadcasted dimensions.
+        
+        For grad_a: If A has fewer dimensions than out_grad (e.g., A is (m, k) while out_grad is (batch, m, n)), sum over the extra leading batch dimensions. If A has the same number of dimensions but some batch dimensions are 1 (e.g., A is (1, m, k) while out_grad is (batch, m, n)), sum over those dimensions where A.shape[i] == 1 and out_grad.shape[i] > 1.
+        
+        For grad_b: Apply the same logic.
 
         Returns:
-            lhs_grad: (m, n)
-            rhs_grad: (n, k)
+            lhs_grad: (..., m, n)
+            rhs_grad: (..., n, k)
         """
         ### BEGIN YOUR SOLUTION
+        # broadcasted into another batch dim
         lhs, rhs = node.inputs
-        lhs_grad = matmul(out_grad, transpose(rhs))
-        rhs_grad = matmul(transpose(lhs), out_grad)
+        lhs_shape, rhs_shape, out_shape =lhs.shape, rhs.shape, out_grad.shape
+        lhs_grad, rhs_grad = matmul(out_grad, transpose(rhs, axes=(-2, -1))), matmul(transpose(lhs, axes=(-2, -1)), out_grad)
+        if len(lhs_shape) < len(out_shape):
+            sum_axes = tuple(range(len(out_shape)-len(lhs_shape)))
+            lhs_grad = summation(lhs_grad, axes=sum_axes)
+        elif lhs_shape == out_shape:
+            # if there's broadcasted batch dim with val 1
+            sum_axes = tuple([i for i in range(len(lhs_shape) - 2) if lhs_shape[i] == 1 and out_shape[i] != 1])
+            lhs_grad = reshape(summation(lhs_grad, axes=sum_axes), lhs_shape) # apply reshape since keepdim default is False
+        # exactly the same as lhs
+        if len(rhs_shape) < len(out_shape):
+            sum_axes = tuple(range(len(out_shape) - len(rhs_shape)))
+            rhs_grad = summation(rhs_grad, axes=sum_axes)
+        elif rhs_shape == out_shape:
+            sum_axes = tuple([i for i in range(len(rhs_shape) - 2) if rhs_shape[i] == 1 and out_shape[i] != 1])
+            rhs_grad = reshape(summation(rhs_grad, axes=sum_axes), rhs_shape)
         return lhs_grad, rhs_grad
         ### END YOUR SOLUTION
 
