@@ -383,6 +383,7 @@ def compute_gradient_of_variables(output_tensor, out_grad):
     gradients: Dict[Tensor, Tensor] = {}
     for i in reverse_topo_order:
         gradients[i] = sum(node_to_output_grads_list[i])
+        # write to grad field
         i.grad = gradients[i]
         if i.is_leaf():
             continue
@@ -416,7 +417,7 @@ def find_topo_sort(node_list: List[Value]) -> List[Value]:
 def topo_sort_dfs(node, visited, topo_order):
     """Post-order DFS"""
     ### BEGIN YOUR SOLUTION
-    if node in visited:
+    if not node or node in visited:
         return
     visited.add(node)
     for input_node in node.inputs:

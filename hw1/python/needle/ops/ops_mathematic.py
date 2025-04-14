@@ -257,6 +257,13 @@ def broadcast_to(a, shape):
 
 class Summation(TensorOp):
     def __init__(self, axes: Optional[tuple] = None):
+        # `int` is not iterable will be raised if axes is an int
+        if axes is not None:
+            if isinstance(axes, int):
+                axes = (axes,)
+            if not all(isinstance(a, int) for a in axes):
+                raise TypeError("axes should be a tuple of integers")
+            axes = tuple(sorted(axes))
         self.axes = axes
 
     def compute(self, a):
@@ -285,6 +292,9 @@ class Summation(TensorOp):
         """
         # sum over all when axes=None
         i = node.inputs[0]
+        # scalar
+        if len(i.shape) == 0:
+            return out_grad
         if self.axes is None:
             axes = tuple(range(len(i.shape)))
         else:

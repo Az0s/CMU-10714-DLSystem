@@ -8,6 +8,10 @@ import sys
 
 sys.path.append("python/")
 import needle as ndl
+import logging
+# Set up logging
+logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+# logger = logging.getLogger()
 
 
 def parse_mnist(image_filesname, label_filename):
@@ -33,11 +37,28 @@ def parse_mnist(image_filesname, label_filename):
                 for MNIST will contain the values 0-9.
     """
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    # Ref Q2 of hw0
+    with gzip.open(image_filesname) as f: 
+        magic, ni, nr, nc = struct.unpack('>iiii', f.read(16))
+        # print(magic, ni, nr, nc)
+        # should follow IDX file format, but hardcode here
+        assert magic == 2051
+        pixels = np.frombuffer(f.read(), dtype=np.uint8)
+        pixels = pixels.reshape((ni, nr * nc)).astype(np.float32) / 255.0
+        # print(pixels.shape)
+    with gzip.open(label_filename) as f:
+        magic, ni = struct.unpack('>ii', f.read(8))
+        # print(magic, ni)
+        assert magic == 2049
+        labels = np.frombuffer(f.read(), dtype=np.uint8)
+        # print(labels.shape)
+        labels = labels.reshape((ni,)).astype(np.uint8)
+        print(labels.shape)
+    return pixels, labels
     ### END YOUR SOLUTION
 
 
-def softmax_loss(Z, y_one_hot):
+def softmax_loss(Z: ndl.Tensor, y_one_hot: ndl.Tensor):
     """Return softmax loss.  Note that for the purposes of this assignment,
     you don't need to worry about "nicely" scaling the numerical properties
     of the log-sum-exp computation, but can just compute this directly.
@@ -54,8 +75,64 @@ def softmax_loss(Z, y_one_hot):
         Average softmax loss over the sample. (ndl.Tensor[np.float32])
     """
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
-    ### END YOUR SOLUTION
+    # v1 = Z
+    # v2 = y_one_hot
+    logger = logging.getLogger('softmax_loss')
+    if not logger.handlers:
+        handler = logging.FileHandler('softmax_loss_debug.log')
+        handler.setFormatter(logging.Formatter('%(message)s'))
+        logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+    def log_tensor(tensor, name):
+        # Log tensor details: name, shape, values (or summary), and memory address
+        try:
+            shape = tensor.shape
+            # Sample a few values to avoid flooding the log
+            # values = tensor.numpy().flatten()[:5] if tensor.size > 5 else tensor.numpy().flatten()
+            address = id(tensor)  # Python object ID
+            # If ndl.Tensor wraps a numpy array, log its address too
+            # data_address = id(tensor.numpy()) if hasattr(tensor, 'numpy') else 'N/A'
+            logger.debug(f"{name}: shape={shape}, id={address}")
+        except Exception as e:
+            logger.error(f"Error logging {name}: {e}")
+
+    B, k = Z.shape
+    log_tensor(Z, "Z")
+    log_tensor(y_one_hot, "y_one_hot")
+
+    v3 = ndl.exp(Z)
+    log_tensor(v3, "v3 (exp(Z))")
+
+    v4 = ndl.summation(v3, axes=1)
+    log_tensor(v4, "v4 (sum(exp(Z), axis=1))")
+
+    v5 = ndl.log(v4)
+    log_tensor(v5, "v5 (log(sum(exp(Z))))")
+
+    v6 = Z.reshape((B, 1, k))
+    log_tensor(v6, "v6 (Z reshaped)")
+
+    v7 = y_one_hot.reshape((B, k, 1))
+    log_tensor(v7, "v7 (y_one_hot reshaped)")
+
+    v8 = v6 @ v7
+    log_tensor(v8, "v8 (Z @ y_one_hot)")
+
+    v9 = v8.reshape((B,))
+    log_tensor(v9, "v9 (v8 reshaped)")
+
+    v10 = v5 - v9
+    log_tensor(v10, "v10 (v5 - v9)")
+
+    v11 = ndl.summation(v10)
+    log_tensor(v11, "v11 (sum(v10))")
+
+    v12 = v11 / v10.shape[0]
+    log_tensor(v12, "v12 (v11 / batch_size)")
+
+    return v12
+    
+
 
 
 def nn_epoch(X, y, W1, W2, lr=0.1, batch=100):
