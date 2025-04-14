@@ -417,9 +417,10 @@ class ReLU(TensorOp):
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        # !FIX
-        i: Value = node.inputs[0]
-        return array_api.minimum(array_api.maximum(i.cached_data, 0), 1) * out_grad
+        i = node.inputs[0]
+        # relu_gates = array_api.where(i.realize_cached_data() > 0, 1, 0).astype(array_api.int8)
+        # return Tensor(array_api.multiply(out_grad.realize_cached_data(), relu_gates))
+        return Tensor(array_api.where(i.realize_cached_data() > 0, out_grad.realize_cached_data(), 0))
         ### END YOUR SOLUTION
 
 

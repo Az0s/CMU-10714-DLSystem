@@ -53,7 +53,7 @@ def parse_mnist(image_filesname, label_filename):
         labels = np.frombuffer(f.read(), dtype=np.uint8)
         # print(labels.shape)
         labels = labels.reshape((ni,)).astype(np.uint8)
-        print(labels.shape)
+        # print(labels.shape)
     return pixels, labels
     ### END YOUR SOLUTION
 
@@ -97,41 +97,30 @@ def softmax_loss(Z: ndl.Tensor, y_one_hot: ndl.Tensor):
             logger.error(f"Error logging {name}: {e}")
 
     B, k = Z.shape
-    log_tensor(Z, "Z")
-    log_tensor(y_one_hot, "y_one_hot")
-
     v3 = ndl.exp(Z)
-    log_tensor(v3, "v3 (exp(Z))")
-
     v4 = ndl.summation(v3, axes=1)
-    log_tensor(v4, "v4 (sum(exp(Z), axis=1))")
-
     v5 = ndl.log(v4)
-    log_tensor(v5, "v5 (log(sum(exp(Z))))")
-
     v6 = Z.reshape((B, 1, k))
-    log_tensor(v6, "v6 (Z reshaped)")
-
     v7 = y_one_hot.reshape((B, k, 1))
-    log_tensor(v7, "v7 (y_one_hot reshaped)")
-
     v8 = v6 @ v7
-    log_tensor(v8, "v8 (Z @ y_one_hot)")
-
     v9 = v8.reshape((B,))
-    log_tensor(v9, "v9 (v8 reshaped)")
-
     v10 = v5 - v9
-    log_tensor(v10, "v10 (v5 - v9)")
-
     v11 = ndl.summation(v10)
-    log_tensor(v11, "v11 (sum(v10))")
-
     v12 = v11 / v10.shape[0]
-    log_tensor(v12, "v12 (v11 / batch_size)")
 
+    # log_tensor(y_one_hot, "y_one_hot")
+    # log_tensor(Z, "Z")
+    # log_tensor(v3, "v3 (exp(Z))")
+    # log_tensor(v4, "v4 (sum(exp(Z), axis=1))")
+    # log_tensor(v5, "v5 (log(sum(exp(Z))))")
+    # log_tensor(v6, "v6 (Z reshaped)")
+    # log_tensor(v7, "v7 (y_one_hot reshaped)")
+    # log_tensor(v8, "v8 (Z @ y_one_hot)")
+    # log_tensor(v9, "v9 (v8 reshaped)")
+    # log_tensor(v10, "v10 (v5 - v9)")
+    # log_tensor(v11, "v11 (sum(v10))")
+    # log_tensor(v12, "v12 (v11 / batch_size)")
     return v12
-    
 
 
 
@@ -158,9 +147,51 @@ def nn_epoch(X, y, W1, W2, lr=0.1, batch=100):
             W1: ndl.Tensor[np.float32]
             W2: ndl.Tensor[np.float32]
     """
-
+    logger = logging.getLogger('nn_epoch')
+    if not logger.handlers:
+        handler = logging.FileHandler('nn_epoch_debug.log')
+        handler.setFormatter(logging.Formatter('%(message)s'))
+        logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+    def log_tensor(tensor, name):
+        # Log tensor details: name, shape, values (or summary), and memory address
+        try:
+            shape = tensor.shape
+            # Sample a few values to avoid flooding the log
+            # values = tensor.numpy().flatten()[:5] if tensor.size > 5 else tensor.numpy().flatten()
+            address = id(tensor)  # Python object ID
+            # If ndl.Tensor wraps a numpy array, log its address too
+            # data_address = id(tensor.numpy()) if hasattr(tensor, 'numpy') else 'N/A'
+            logger.debug(f"{name}: shape={shape}, id={address}")
+        except Exception as e:
+            logger.error(f"Error logging {name}: {e}")
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    B, C = X.shape
+    k = W2.shape[1]
+    for i in range(0, B, batch):
+        X_batch = ndl.Tensor(X[i:i + batch])
+        y_batch = ndl.Tensor(y[i:i + batch])
+        v2 = X_batch@W1
+        v3 = ndl.relu(v2)
+        v4 = v3@W2
+        logits = v4
+        # log_tensor(W1, "W1")
+        # log_tensor(W2, "W2")
+        # log_tensor(X_batch, "X_batch")
+        # log_tensor(y_batch, "y_batch")
+        # log_tensor(v2, "v2 (X_batch @ W1)")
+        # log_tensor(v3, "v3 (ReLU(v2))")
+        # log_tensor(v4, "v4 (v3 @ W2)")
+        # logits = ndl.relu(X_batch@W1)@W2
+        y_one_hot = ndl.init.one_hot(k, y_batch, dtype=X.dtype)
+        loss = softmax_loss(logits, y_one_hot)
+        loss.backward()
+        # W1.data -= lr * W1.grad.data
+        # W2.data -= lr * W2.grad.data
+        # create new weights matraces as guided
+        W1 = ndl.Tensor(W1 - lr * W1.grad.data)
+        W2 = ndl.Tensor(W2 - lr * W2.grad.data)
+    return W1, W2
     ### END YOUR SOLUTION
 
 
