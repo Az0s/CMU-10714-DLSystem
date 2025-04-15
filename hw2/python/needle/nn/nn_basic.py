@@ -88,12 +88,23 @@ class Linear(Module):
         self.out_features = out_features
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.bias = bias
+        self.weight = Parameter(
+            init.kaiming_uniform(self.in_features, self.out_features, device=device, dtype=dtype)
+        )
+        # TODO why `fan_in`==`out_features`?
+        if self.bias: 
+            self.bias = Parameter(
+                init.kaiming_uniform(fan_in=out_features, fan_out=1, device=device, dtype=dtype).transpose()
+            )
         ### END YOUR SOLUTION
 
     def forward(self, X: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        X = X @ self.weight # B, n
+        if self.bias:
+            X = X + self.bias.broadcast_to((*X.shape[:-1], self.out_features))
+        return X
         ### END YOUR SOLUTION
 
 
@@ -107,7 +118,7 @@ class Flatten(Module):
 class ReLU(Module):
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return ops.relu(x)
         ### END YOUR SOLUTION
 
 class Sequential(Module):
@@ -117,14 +128,19 @@ class Sequential(Module):
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        for module in self.modules:
+            x = module(x)
+        return x
         ### END YOUR SOLUTION
 
 
 class SoftmaxLoss(Module):
     def forward(self, logits: Tensor, y: Tensor):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        y_one_hot = init.one_hot(logits.shape[-1], y)  # Shape: (*batch_shape, num_classes)
+        log_sum_exp = ops.logsumexp(logits, axes=(-1,))  # Shape: (*batch_shape,)
+        true_logits = ops.summation(y_one_hot * logits, axes=(-1,))  # Shape: (*batch_shape,)
+        return ops.summation(log_sum_exp - true_logits)/log_sum_exp.shape[0]  # Shape: (*batch_shape,)
         ### END YOUR SOLUTION
 
 
