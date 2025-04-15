@@ -298,6 +298,8 @@ class Summation(TensorOp):
         if self.axes is None:
             axes = tuple(range(len(i.shape)))
         else:
+            if any(x<0 for x in self.axes):
+                self.axes = tuple(x if x>=0 else x + len(i.shape) for x in self.axes)
             axes = self.axes
         return broadcast_to(reshape(out_grad, tuple(1 if d in axes else i.shape[d] for d in range(len(i.shape)))), i.shape)
         ### END YOUR SOLUTION
