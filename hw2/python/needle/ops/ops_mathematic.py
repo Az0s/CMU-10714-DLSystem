@@ -43,6 +43,10 @@ def add_scalar(a, scalar):
 
 class EWiseMul(TensorOp):
     def compute(self, a: NDArray, b: NDArray):
+        assert a.shape == b.shape, (
+        f"Shape mismatch: a.shape={a.shape}, b.shape={b.shape}. "
+        "ndl does not support implicit shape broadcasting."
+    )
         return a * b
 
     def gradient(self, out_grad: Tensor, node: Tensor):
