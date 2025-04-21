@@ -60,12 +60,36 @@ class DataLoader:
 
     def __iter__(self):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.index = 0
+        if self.shuffle: 
+            idx = np.arange(len(self.dataset))
+            np.random.shuffle(idx)
+            self.ordering = np.array_split(idx, 
+                                           range(self.batch_size, len(self.dataset), self.batch_size))
+            
         ### END YOUR SOLUTION
         return self
 
     def __next__(self):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if self.index >= len(self.ordering):
+            raise StopIteration
+        # this only fit dataset with mnist-like format
+        # batch_x, batch_y = [], []
+        # for idx in self.ordering[self.index]:
+        #     x, y = self.dataset[idx]
+        #     batch_x.append(x[0])
+        #     batch_y.append(y)
+        # self.index += 1
+        # batch = [Tensor(x) for x in self.dataset[self.ordering[self.index].to_list()]]
+        # return [Tensor(batch_x), Tensor(batch_y)]
+        # samples = [Tensor(x) for x in self.dataset[self.ordering[self.index]]]
+        samples = []
+        it = self.dataset[self.ordering[self.index]]
+        for x in it:
+            samples.append(Tensor(x))
+        self.index += 1
+        return tuple(samples)
+        # return self.dataset[self.ordering[self.index].item(): self.ordering[self.index].item()+self.batch_size]
         ### END YOUR SOLUTION
 
